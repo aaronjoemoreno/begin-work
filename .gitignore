@@ -1,0 +1,8 @@
+node_modules
+.grok
+.vercel
+screenshots
+artifacts
+public/__grok
+.node_modules.lock
+*.log
