@@ -5,6 +5,7 @@ export const SITE_PAGES = [
   { to: "/", label: "Field guide" },
   { to: "/overview", label: "Overview" },
   { to: "/interview", label: "Interview drill" },
+  { to: "/gemini", label: "Gemini" },
 ] as const;
 
 export function SiteNav({ className = "" }: { className?: string }) {
