@@ -80,7 +80,7 @@ const FIELDS: {
     value: "{ title: 'Before' }",
     picture: "The props from the last finished render of this fiber.",
     mechanism: "They live on the fiber, not on the element. Elements are thrown away. The fiber remembers.",
-    source: "Bailout and memo compare against this. Host updates diff pending props against it inside prepareUpdate.",
+    source: "Bailout and memo compare against this. On a host update, commitUpdate diffs these old props against the new ones during commit.",
   },
   {
     group: "State",
