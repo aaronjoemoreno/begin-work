@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "@tanstack/react-router";
+import { SiteNav } from "@/components/site/site-nav";
 import { DepthProvider, Layer, useDepth, type Depth } from "@/components/guide/depth";
 import { BufferLab } from "@/components/guide/buffer-lab";
 import { ChildrenLab } from "@/components/guide/children-lab";
@@ -47,14 +48,12 @@ function GuideBody() {
       </div>
       <header className="sticky top-0 z-20 border-b border-line bg-ink">
         <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-3">
-          <div className="flex items-baseline justify-between gap-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
             <a href="#top" className="font-mono text-sm tracking-widest text-paper uppercase">
               Begin Work
             </a>
             <div className="flex items-baseline gap-4">
-              <Link to="/interview" className="font-mono text-xs text-copper hover:text-paper">
-                Interview drill →
-              </Link>
+              <SiteNav />
               <p className="hidden font-mono text-xs text-mist sm:block">React 19.2</p>
             </div>
           </div>
@@ -109,8 +108,14 @@ function GuideBody() {
             ))}
           </ol>
           <Link
-            to="/interview"
+            to="/overview"
             className="mt-4 flex min-h-11 items-center border-t border-line pt-3 font-mono text-xs text-copper hover:text-paper"
+          >
+            Overview: reconciliation &amp; Fiber notes →
+          </Link>
+          <Link
+            to="/interview"
+            className="flex min-h-11 items-center font-mono text-xs text-copper hover:text-paper"
           >
             Interview drill: fiber, reconciliation, virtual DOM →
           </Link>
@@ -511,6 +516,12 @@ function GuideBody() {
               className="mt-6 inline-flex min-h-11 items-center rounded-md bg-copper px-4 font-mono text-sm text-ink"
             >
               Open the interview drill →
+            </Link>
+            <Link
+              to="/overview"
+              className="mt-6 ml-3 inline-flex min-h-11 items-center rounded-md border border-line px-4 font-mono text-sm text-paper hover:border-copper"
+            >
+              Read the overview notes →
             </Link>
           </section>
         </main>

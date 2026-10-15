@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useSearch } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { DepthProvider, Layer, useDepth, type Depth } from "@/components/guide/depth";
 import { Chapter, Kicker, Panel, Select } from "@/components/guide/ui";
 import { BrowserApiLab } from "@/components/interview/browser-api-lab";
@@ -35,7 +35,7 @@ import {
   Watch,
 } from "@/components/interview/shared";
 import { SliceLab } from "@/components/interview/slice-lab";
-import { OVERVIEW_TOC, Overview } from "@/components/interview/overview";
+import { SiteNav } from "@/components/site/site-nav";
 import { videoAt } from "@/lib/interview-sim";
 
 const VIDEO = {
@@ -77,59 +77,23 @@ export function Interview() {
   );
 }
 
-type Tab = "overview" | "drill";
-
-const TABS: { id: Tab; label: string }[] = [
-  { id: "overview", label: "Overview" },
-  { id: "drill", label: "Interview drill" },
-];
-
-/** #overview / #ov-* → Overview. #drill / #iv-* → Interview drill. */
-function tabFromHash(hash: string): Tab | null {
+/** Old links into the Overview tab (#overview, #ov-*) now live on /overview. */
+function isOverviewHash(hash: string) {
   const id = hash.replace(/^#/, "");
-  if (id === "overview" || id.startsWith("ov-")) return "overview";
-  if (id === "drill" || id === "interview-drill" || id.startsWith("iv-")) return "drill";
-  return null;
+  return id === "overview" || id.startsWith("ov-");
 }
 
 function InterviewBody() {
   const { depth, setDepth } = useDepth();
-  const search = useSearch({ from: "/interview" });
-  const navigate = useNavigate({ from: "/interview" });
-  const [hashTab, setHashTab] = useState<Tab | null>(null);
-  const tab: Tab = hashTab ?? search.tab ?? "overview";
-
-  const [pendingScroll, setPendingScroll] = useState<string | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    function sync() {
-      const next = tabFromHash(window.location.hash);
-      setHashTab(next);
-      const id = window.location.hash.slice(1);
-      if (next && id && id !== "overview" && id !== "drill" && id !== "interview-drill") {
-        setPendingScroll(id);
-      }
-    }
-    sync();
-    window.addEventListener("hashchange", sync);
-    return () => window.removeEventListener("hashchange", sync);
-  }, []);
+    const { hash } = window.location;
+    if (!isOverviewHash(hash)) return;
+    const id = hash.slice(1);
+    void navigate({ to: "/overview", hash: id === "overview" ? undefined : id, replace: true });
+  }, [navigate]);
 
-  // A hash like #iv-diff can point into the tab that was not rendered on the server.
-  // Scroll once that tab's panel has mounted.
-  useEffect(() => {
-    if (!pendingScroll) return;
-    const el = document.getElementById(pendingScroll);
-    if (!el) return;
-    el.scrollIntoView({ block: "start" });
-    setPendingScroll(null);
-  }, [pendingScroll, tab]);
-
-  function selectTab(next: Tab) {
-    setHashTab(null);
-    void navigate({ search: { tab: next }, hash: "", replace: true });
-    window.scrollTo({ top: 0 });
-  }
   const { picks, reset } = useQuiz();
   const [progress, setProgress] = useState(0);
   const correct = ALL_QUESTIONS.filter((q) => picks[q.id] === q.answer).length;
@@ -156,316 +120,226 @@ function InterviewBody() {
       </div>
       <header className="sticky top-0 z-20 border-b border-line bg-ink">
         <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-3">
-          <div className="flex items-baseline justify-between gap-3">
+          <div className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
             <Link to="/" className="font-mono text-sm tracking-widest text-paper uppercase">
-              ← Begin Work
+              Begin Work
             </Link>
-            <p className="font-mono text-xs text-mist">
-              {tab === "drill"
-                ? `Interview drill · ${correct}/${ALL_QUESTIONS.length} checks`
-                : "Reconciliation notes"}
-            </p>
+            <SiteNav />
           </div>
+          <p className="font-mono text-xs text-mist">
+            Interview drill · {correct}/{ALL_QUESTIONS.length} checks
+          </p>
           <div
-            className="grid grid-cols-2 border-b border-line"
-            role="tablist"
-            aria-label="Interview section"
+            className="grid grid-cols-2 gap-2 sm:grid-cols-4"
+            role="radiogroup"
+            aria-label="Reading depth"
           >
-            {TABS.map((item) => (
+            {DEPTHS.map((item) => (
               <button
                 key={item.id}
-                id={`tab-${item.id}`}
                 type="button"
-                role="tab"
-                aria-selected={tab === item.id}
-                aria-controls={`panel-${item.id}`}
-                onClick={() => selectTab(item.id)}
-                className={`-mb-px min-h-11 border-b-2 px-2 font-serif text-lg ${
-                  tab === item.id
-                    ? "border-copper text-paper"
-                    : "border-transparent text-mist hover:text-paper"
+                role="radio"
+                aria-checked={depth === item.id}
+                onClick={() => setDepth(item.id)}
+                className={`min-h-11 rounded-md border px-2 font-mono text-sm ${
+                  depth === item.id ? "border-copper bg-copper text-ink" : "border-line text-paper"
                 }`}
               >
                 {item.label}
               </button>
             ))}
           </div>
-          {tab === "drill" ? (
-            <div
-              className="grid grid-cols-2 gap-2 sm:grid-cols-4"
-              role="radiogroup"
-              aria-label="Reading depth"
-            >
-              {DEPTHS.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={depth === item.id}
-                  onClick={() => setDepth(item.id)}
-                  className={`min-h-11 rounded-md border px-2 font-mono text-sm ${
-                    depth === item.id
-                      ? "border-copper bg-copper text-ink"
-                      : "border-line text-paper"
-                  }`}
-                >
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          ) : null}
           <label className="flex flex-col gap-2 font-mono text-xs tracking-widest text-mist uppercase xl:hidden">
-            {tab === "overview" ? "On this page" : "Jump"}
-            {tab === "overview" ? (
-              <Select
-                key="overview"
-                aria-label="Jump to a section"
-                defaultValue=""
-                onChange={(event) => jump(event.target.value)}
-              >
-                <option value="" disabled>
-                  Section
+            Jump
+            <Select
+              key="drill"
+              aria-label="Jump to a part"
+              defaultValue=""
+              onChange={(event) => jump(event.target.value)}
+            >
+              <option value="" disabled>
+                Part
+              </option>
+              {PARTS.map(([id, at, label]) => (
+                <option key={id} value={id}>
+                  {at} {label}
                 </option>
-                {OVERVIEW_TOC.map((item) => (
-                  <option key={item.id} value={item.id}>
-                    {item.level === 3 ? "\u00a0\u00a0· " : ""}
-                    {item.label}
-                  </option>
-                ))}
-              </Select>
-            ) : (
-              <Select
-                key="drill"
-                aria-label="Jump to a part"
-                defaultValue=""
-                onChange={(event) => jump(event.target.value)}
-              >
-                <option value="" disabled>
-                  Part
-                </option>
-                {PARTS.map(([id, at, label]) => (
-                  <option key={id} value={id}>
-                    {at} {label}
-                  </option>
-                ))}
-              </Select>
-            )}
+              ))}
+            </Select>
           </label>
         </div>
       </header>
 
       <div className="mx-auto grid max-w-6xl gap-8 px-4 xl:grid-cols-[14rem_minmax(0,1fr)]">
-        {tab === "overview" ? (
-          <nav className="sticky top-36 hidden h-fit pt-12 xl:block" aria-label="On this page">
-            <p className="font-mono text-xs tracking-widest text-copper uppercase">On this page</p>
-            <ol className="mt-2 flex flex-col border-l border-line">
-              {OVERVIEW_TOC.map((item) => (
-                <li key={item.id}>
-                  <a
-                    href={`#${item.id}`}
-                    className={`flex min-h-9 items-center font-mono text-xs hover:text-paper ${
-                      item.level === 3 ? "pl-6 text-mist/80" : "pl-3 text-mist"
-                    }`}
-                  >
-                    {item.label}
-                  </a>
-                </li>
-              ))}
-            </ol>
-            <Link
-              to="/"
-              className="mt-4 flex min-h-11 items-center font-mono text-xs text-mist hover:text-paper"
-            >
-              ← Back to the field guide
-            </Link>
-          </nav>
-        ) : (
-          <nav className="sticky top-36 hidden h-fit xl:block" aria-label="Parts">
-            <ol className="flex flex-col gap-1">
-              {PARTS.map(([id, at, label]) => (
-                <li key={id}>
-                  <a
-                    href={`#${id}`}
-                    className="flex min-h-11 items-center gap-2 font-mono text-xs text-mist hover:text-paper"
-                  >
-                    <span className="w-10 shrink-0 text-copper">{at}</span>
-                    {label}
-                  </a>
-                </li>
-              ))}
-            </ol>
-            <Link
-              to="/"
-              className="mt-4 flex min-h-11 items-center font-mono text-xs text-mist hover:text-paper"
-            >
-              ← Back to the field guide
-            </Link>
-          </nav>
-        )}
+        <nav className="sticky top-36 hidden h-fit xl:block" aria-label="Parts">
+          <ol className="flex flex-col gap-1">
+            {PARTS.map(([id, at, label]) => (
+              <li key={id}>
+                <a
+                  href={`#${id}`}
+                  className="flex min-h-11 items-center gap-2 font-mono text-xs text-mist hover:text-paper"
+                >
+                  <span className="w-10 shrink-0 text-copper">{at}</span>
+                  {label}
+                </a>
+              </li>
+            ))}
+          </ol>
+          <Link
+            to="/"
+            className="mt-4 flex min-h-11 items-center font-mono text-xs text-mist hover:text-paper"
+          >
+            ← Back to the field guide
+          </Link>
+          <Link
+            to="/overview"
+            className="flex min-h-11 items-center font-mono text-xs text-copper hover:text-paper"
+          >
+            Just the notes: reconciliation &amp; Fiber overview →
+          </Link>
+        </nav>
 
-        {tab === "overview" ? (
-          <main
-            id="panel-overview"
-            role="tabpanel"
-            aria-labelledby="tab-overview"
-            className="min-w-0 pb-24"
-          >
-            <Overview />
-            <button
-              type="button"
-              onClick={() => selectTab("drill")}
-              className="mt-4 inline-flex min-h-11 items-center rounded-md bg-copper px-4 font-mono text-sm text-ink"
-            >
-              Practice it: open the interview drill →
-            </button>
-          </main>
-        ) : (
-          <main
-            id="panel-drill"
-            role="tabpanel"
-            aria-labelledby="tab-drill"
-            className="min-w-0 pb-24"
-          >
-            <header className="py-12 md:py-16">
-              <Kicker>Interview drill · video companion</Kicker>
-              <h1 className="mt-3 max-w-3xl font-serif text-4xl text-paper md:text-6xl">
-                Fiber, reconciliation, and the virtual DOM, asked like a senior interview
-              </h1>
-              <p className="mt-4 max-w-2xl text-lg text-mist">
-                Three questions and five follow-ups, in the order the video asks them. Each answer
-                gets a working model you can drive, a correction where the spoken answer and the
-                React 19.2 source part ways, and a quick check.
+        <main id="interview-drill" className="min-w-0 pb-24">
+          <header className="py-12 md:py-16">
+            <Kicker>Interview drill · video companion</Kicker>
+            <h1 className="mt-3 max-w-3xl font-serif text-4xl text-paper md:text-6xl">
+              Fiber, reconciliation, and the virtual DOM, asked like a senior interview
+            </h1>
+            <p className="mt-4 max-w-2xl text-lg text-mist">
+              Three questions and five follow-ups, in the order the video asks them. Each answer
+              gets a working model you can drive, a correction where the spoken answer and the React
+              19.2 source part ways, and a quick check.
+            </p>
+            <Panel className="mt-8 flex flex-col gap-3">
+              <p className="font-mono text-xs tracking-widest text-copper uppercase">
+                Source and credit
               </p>
-              <Panel className="mt-8 flex flex-col gap-3">
-                <p className="font-mono text-xs tracking-widest text-copper uppercase">
-                  Source and credit
-                </p>
-                <p className="text-paper">
-                  <a
-                    href={VIDEO.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="underline decoration-copper underline-offset-4"
+              <p className="text-paper">
+                <a
+                  href={VIDEO.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline decoration-copper underline-offset-4"
+                >
+                  {VIDEO.title}
+                </a>{" "}
+                by {VIDEO.channel} · {VIDEO.length} · {VIDEO.date}. A mock interview: the host asks,
+                a guest engineer answers on a shared diagram board.
+              </p>
+              <p className="text-sm text-mist">
+                Every part links to its timestamp. Quotes are from YouTube’s auto-captions, lightly
+                cleaned. The video shows no code; the code here is written for this page. The labs
+                are teaching models, not React’s implementation.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <Watch from={0} label="Watch from" />
+                {answered > 0 ? (
+                  <button
+                    type="button"
+                    onClick={reset}
+                    className="min-h-11 rounded-md border border-line px-3 font-mono text-xs text-mist hover:text-paper"
                   >
-                    {VIDEO.title}
-                  </a>{" "}
-                  by {VIDEO.channel} · {VIDEO.length} · {VIDEO.date}. A mock interview: the host
-                  asks, a guest engineer answers on a shared diagram board.
-                </p>
-                <p className="text-sm text-mist">
-                  Every part links to its timestamp. Quotes are from YouTube’s auto-captions,
-                  lightly cleaned. The video shows no code; the code here is written for this page.
-                  The labs are teaching models, not React’s implementation.
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <Watch from={0} label="Watch from" />
-                  {answered > 0 ? (
-                    <button
-                      type="button"
-                      onClick={reset}
-                      className="min-h-11 rounded-md border border-line px-3 font-mono text-xs text-mist hover:text-paper"
-                    >
-                      Reset {answered} answered checks
-                    </button>
-                  ) : null}
-                </div>
-              </Panel>
-            </header>
-
-            {/* 00 ------------------------------------------------------------ */}
-            <Chapter
-              id="iv-intro"
-              index="00 · 00:00–00:26"
-              title="The brief: concurrent React, fiber, reconciliation, virtual DOM"
-              lede="The interviewer promises the hard senior questions, plus the mental models behind each answer. The rest of the video is one long trace through the same machinery."
-            >
-              <Watch from={0} to={26} />
-              <div className="grid gap-3 sm:grid-cols-3">
-                <MiniCard
-                  title="Element → fiber → DOM"
-                  body="Three objects, three jobs. The video keeps saying “virtual DOM” for the first; this guide calls it the element."
-                />
-                <MiniCard
-                  title="Render vs commit"
-                  body="One phase can stop. The other cannot. Most follow-ups are about which is which."
-                />
-                <MiniCard
-                  title="Priority"
-                  body="Why a keystroke can cut in front of a big list without losing it."
-                />
+                    Reset {answered} answered checks
+                  </button>
+                ) : null}
               </div>
-              <Layer id="picture">
-                <p>
-                  Use this page like a rehearsal. Read the question, try answering out loud, then
-                  play the lab and compare with the model answer. The field guide chapters go
-                  further on each piece; links are at the end of each part.
-                </p>
-              </Layer>
-            </Chapter>
+            </Panel>
+          </header>
 
-            {/* Q1 ------------------------------------------------------------ */}
-            <Chapter
-              id="iv-fiber"
-              index="Q1 · 00:26–02:17"
-              title="What is React Fiber, and how is it different from the virtual DOM?"
-              lede="Before 16, an update went from elements to the DOM in one synchronous shot. Fiber puts a tree of resumable work units in between."
-            >
-              <Watch from={26} to={137} />
-              <PipelineToggle />
-              <Quote at={109}>the fiber reconciliation can be paused</Quote>
-              <Layer id="picture">
-                <p>
-                  The guest’s answer: React 16 introduced the fiber node, an intermediate structure
-                  where all the work of rendering a component happens. Just as there used to be a
-                  tree of virtual DOM nodes, there is now a fiber tree. The big difference is that
-                  work on that tree can stop for a higher-priority update and come back — which is
-                  what “concurrent React” means.
-                </p>
-              </Layer>
-              <Correction
-                said="Fiber computes state and lifecycles, then the virtual DOM is computed from the fiber tree and diffed against the old virtual DOM."
-                actual={
-                  <>
-                    There is no second tree diff. Components return elements; beginWork reconciles
-                    those elements against the current fibers’ children, one sibling list at a time.
-                    Flags on fibers are the “diff.” See{" "}
-                    <GuideLink hash="objects">02 Three objects</GuideLink> and{" "}
-                    <GuideLink hash="myths">13 Models that lie</GuideLink>.
-                  </>
-                }
+          {/* 00 ------------------------------------------------------------ */}
+          <Chapter
+            id="iv-intro"
+            index="00 · 00:00–00:26"
+            title="The brief: concurrent React, fiber, reconciliation, virtual DOM"
+            lede="The interviewer promises the hard senior questions, plus the mental models behind each answer. The rest of the video is one long trace through the same machinery."
+          >
+            <Watch from={0} to={26} />
+            <div className="grid gap-3 sm:grid-cols-3">
+              <MiniCard
+                title="Element → fiber → DOM"
+                body="Three objects, three jobs. The video keeps saying “virtual DOM” for the first; this guide calls it the element."
               />
-              <ModelAnswer>
-                <p>
-                  “A fiber is React’s unit of work: a mutable object per component that holds its
-                  props, state, effects, priority lanes, and child/sibling/return pointers. Before
-                  React 16 the reconciler recursed on the call stack, so a render had to finish once
-                  it started. With fiber, the next unit is a pointer, so React can yield between
-                  components, let the browser handle input, and resume or restart. Elements — what
-                  people call the virtual DOM — are still created every render; fiber replaced the
-                  stack reconciler, not the elements.”
-                </p>
-              </ModelAnswer>
-              <QuickCheck questions={Q_FIBER} />
-            </Chapter>
-
-            {/* Q2 ------------------------------------------------------------ */}
-            <Chapter
-              id="iv-stack"
-              index="Q2 · 02:17–04:47"
-              title="Explain reconciliation, and what fiber changed about it"
-              lede="The stack reconciler pushes every render function onto the call stack and cannot let go. Type into a form while it works and nothing appears."
-            >
-              <Watch from={137} to={287} />
-              <MainThreadLab />
-              <Quote at={183}>that’s what they call the stack reconciler</Quote>
-              <p className="max-w-2xl text-mist">
-                At 04:07 the guest zooms into one fiber on the board: a JavaScript object holding
-                the state, the new and memoized props, the function that runs it, and its sibling
-                and child. Here is that object, trimmed to the fields he names plus the one that
-                makes the walk possible:
+              <MiniCard
+                title="Render vs commit"
+                body="One phase can stop. The other cannot. Most follow-ups are about which is which."
+              />
+              <MiniCard
+                title="Priority"
+                body="Why a keystroke can cut in front of a big list without losing it."
+              />
+            </div>
+            <Layer id="picture">
+              <p>
+                Use this page like a rehearsal. Read the question, try answering out loud, then play
+                the lab and compare with the model answer. The field guide chapters go further on
+                each piece; links are at the end of each part.
               </p>
-              <Code title="A fiber for the Form component (simplified, React 19.2 field names)">
-                {`
+            </Layer>
+          </Chapter>
+
+          {/* Q1 ------------------------------------------------------------ */}
+          <Chapter
+            id="iv-fiber"
+            index="Q1 · 00:26–02:17"
+            title="What is React Fiber, and how is it different from the virtual DOM?"
+            lede="Before 16, an update went from elements to the DOM in one synchronous shot. Fiber puts a tree of resumable work units in between."
+          >
+            <Watch from={26} to={137} />
+            <PipelineToggle />
+            <Quote at={109}>the fiber reconciliation can be paused</Quote>
+            <Layer id="picture">
+              <p>
+                The guest’s answer: React 16 introduced the fiber node, an intermediate structure
+                where all the work of rendering a component happens. Just as there used to be a tree
+                of virtual DOM nodes, there is now a fiber tree. The big difference is that work on
+                that tree can stop for a higher-priority update and come back — which is what
+                “concurrent React” means.
+              </p>
+            </Layer>
+            <Correction
+              said="Fiber computes state and lifecycles, then the virtual DOM is computed from the fiber tree and diffed against the old virtual DOM."
+              actual={
+                <>
+                  There is no second tree diff. Components return elements; beginWork reconciles
+                  those elements against the current fibers’ children, one sibling list at a time.
+                  Flags on fibers are the “diff.” See{" "}
+                  <GuideLink hash="objects">02 Three objects</GuideLink> and{" "}
+                  <GuideLink hash="myths">13 Models that lie</GuideLink>.
+                </>
+              }
+            />
+            <ModelAnswer>
+              <p>
+                “A fiber is React’s unit of work: a mutable object per component that holds its
+                props, state, effects, priority lanes, and child/sibling/return pointers. Before
+                React 16 the reconciler recursed on the call stack, so a render had to finish once
+                it started. With fiber, the next unit is a pointer, so React can yield between
+                components, let the browser handle input, and resume or restart. Elements — what
+                people call the virtual DOM — are still created every render; fiber replaced the
+                stack reconciler, not the elements.”
+              </p>
+            </ModelAnswer>
+            <QuickCheck questions={Q_FIBER} />
+          </Chapter>
+
+          {/* Q2 ------------------------------------------------------------ */}
+          <Chapter
+            id="iv-stack"
+            index="Q2 · 02:17–04:47"
+            title="Explain reconciliation, and what fiber changed about it"
+            lede="The stack reconciler pushes every render function onto the call stack and cannot let go. Type into a form while it works and nothing appears."
+          >
+            <Watch from={137} to={287} />
+            <MainThreadLab />
+            <Quote at={183}>that’s what they call the stack reconciler</Quote>
+            <p className="max-w-2xl text-mist">
+              At 04:07 the guest zooms into one fiber on the board: a JavaScript object holding the
+              state, the new and memoized props, the function that runs it, and its sibling and
+              child. Here is that object, trimmed to the fields he names plus the one that makes the
+              walk possible:
+            </p>
+            <Code title="A fiber for the Form component (simplified, React 19.2 field names)">
+              {`
 const formFiber = {
   tag: 0,                    // FunctionComponent
   type: Form,                // "the function that runs it"
@@ -480,9 +354,9 @@ const formFiber = {
   flags: 0,                  // notes for commit: Placement, Update, …
   alternate: formFiberWIP,   // the twin being built
 };`}
-              </Code>
-              <Code title="Stack vs fiber, as two loops">
-                {`
+            </Code>
+            <Code title="Stack vs fiber, as two loops">
+              {`
 // Stack reconciler (≤ 15): the work list is the JS call stack.
 function renderTree(component) {
   const children = component.render();
@@ -496,80 +370,80 @@ function workLoopConcurrent() {
     workInProgress = performUnitOfWork(workInProgress);   // returns child, sibling, or climbs via return
   }
 }`}
-              </Code>
-              <ModelAnswer>
-                <p>
-                  “Reconciliation is how React turns new elements into a plan for the host. A state
-                  change schedules work at the root; React walks the tree, calls components,
-                  compares each child list with what is mounted using type and key, and marks fibers
-                  with flags. Then commit applies those flags to the DOM in one pass. The stack
-                  reconciler did the walk by recursion, so a big tree blocked input and paint. Fiber
-                  does the same walk as a loop over linked fibers, so concurrent renders can yield
-                  between units.”
-                </p>
-              </ModelAnswer>
-              <QuickCheck questions={Q_STACK} />
-              <GuideLinks
-                items={[
-                  ["fiber", "03 The fiber"],
-                  ["loop", "04 The work loop"],
-                ]}
-              />
-            </Chapter>
+            </Code>
+            <ModelAnswer>
+              <p>
+                “Reconciliation is how React turns new elements into a plan for the host. A state
+                change schedules work at the root; React walks the tree, calls components, compares
+                each child list with what is mounted using type and key, and marks fibers with
+                flags. Then commit applies those flags to the DOM in one pass. The stack reconciler
+                did the walk by recursion, so a big tree blocked input and paint. Fiber does the
+                same walk as a loop over linked fibers, so concurrent renders can yield between
+                units.”
+              </p>
+            </ModelAnswer>
+            <QuickCheck questions={Q_STACK} />
+            <GuideLinks
+              items={[
+                ["fiber", "03 The fiber"],
+                ["loop", "04 The work loop"],
+              ]}
+            />
+          </Chapter>
 
-            {/* Follow-up: why ------------------------------------------------ */}
-            <Chapter
-              id="iv-why"
-              index="Follow-up · 04:47–07:38"
-              title="Why do we need fiber at all? It adds a layer."
-              lede="The interviewer pushes back on the complexity. The answer: fiber works with a priority queue and a scheduler, on a copy of the tree, a budget at a time."
-            >
-              <Watch from={287} to={458} />
-              <SliceLab />
-              <Quote at={337}>it works together with a priority queue and a scheduler</Quote>
-              <Quote at={430}>I will let you do some work for around 50 milliseconds</Quote>
-              <Correction
-                said="React calls requestIdleCallback; the browser grants about 50 ms; when the frame budget runs out, React pauses."
-                actual={
-                  <>
-                    React’s scheduler does not use requestIdleCallback. It posts MessageChannel
-                    messages and yields roughly every 5 ms (frameYieldMs). 50 ms is the cap the
-                    browser spec puts on one idle period. The pause-and-repaint idea is right; the
-                    API and the number are not React’s.
-                  </>
-                }
-              />
-              <ModelAnswer>
-                <p>
-                  “Because rendering on a copy is what makes interruption safe. A setState queues an
-                  update on the hook and marks lanes up to the root. React renders a
-                  work-in-progress tree — the alternate of each fiber — while root.current stays on
-                  screen. In concurrent mode it checks shouldYield after each unit, about every 5
-                  ms, and gives the main thread back. Only when the whole tree completes does commit
-                  swap the two trees. The layer exists so render can be thrown away without the user
-                  ever seeing half a tree.”
-                </p>
-              </ModelAnswer>
-              <QuickCheck questions={Q_WHY} />
-              <GuideLinks
-                items={[
-                  ["buffer", "06 Double buffering"],
-                  ["loop", "04 The work loop"],
-                ]}
-              />
-            </Chapter>
+          {/* Follow-up: why ------------------------------------------------ */}
+          <Chapter
+            id="iv-why"
+            index="Follow-up · 04:47–07:38"
+            title="Why do we need fiber at all? It adds a layer."
+            lede="The interviewer pushes back on the complexity. The answer: fiber works with a priority queue and a scheduler, on a copy of the tree, a budget at a time."
+          >
+            <Watch from={287} to={458} />
+            <SliceLab />
+            <Quote at={337}>it works together with a priority queue and a scheduler</Quote>
+            <Quote at={430}>I will let you do some work for around 50 milliseconds</Quote>
+            <Correction
+              said="React calls requestIdleCallback; the browser grants about 50 ms; when the frame budget runs out, React pauses."
+              actual={
+                <>
+                  React’s scheduler does not use requestIdleCallback. It posts MessageChannel
+                  messages and yields roughly every 5 ms (frameYieldMs). 50 ms is the cap the
+                  browser spec puts on one idle period. The pause-and-repaint idea is right; the API
+                  and the number are not React’s.
+                </>
+              }
+            />
+            <ModelAnswer>
+              <p>
+                “Because rendering on a copy is what makes interruption safe. A setState queues an
+                update on the hook and marks lanes up to the root. React renders a work-in-progress
+                tree — the alternate of each fiber — while root.current stays on screen. In
+                concurrent mode it checks shouldYield after each unit, about every 5 ms, and gives
+                the main thread back. Only when the whole tree completes does commit swap the two
+                trees. The layer exists so render can be thrown away without the user ever seeing
+                half a tree.”
+              </p>
+            </ModelAnswer>
+            <QuickCheck questions={Q_WHY} />
+            <GuideLinks
+              items={[
+                ["buffer", "06 Double buffering"],
+                ["loop", "04 The work loop"],
+              ]}
+            />
+          </Chapter>
 
-            {/* Follow-up: memory --------------------------------------------- */}
-            <Chapter
-              id="iv-memory"
-              index="Follow-up · 07:38–08:30"
-              title="How does all of this stay in memory without leaking?"
-              lede="The guest’s answer is reuse: unchanged fibers are kept by reference, and memo’d components with the same props are not re-rendered."
-            >
-              <Watch from={458} to={510} />
-              <ReuseMeter />
-              <Code title="What the video means by “maintain a reference to the previous one”">
-                {`
+          {/* Follow-up: memory --------------------------------------------- */}
+          <Chapter
+            id="iv-memory"
+            index="Follow-up · 07:38–08:30"
+            title="How does all of this stay in memory without leaking?"
+            lede="The guest’s answer is reuse: unchanged fibers are kept by reference, and memo’d components with the same props are not re-rendered."
+          >
+            <Watch from={458} to={510} />
+            <ReuseMeter />
+            <Code title="What the video means by “maintain a reference to the previous one”">
+              {`
 const Row = memo(function Row({ item }) {
   return <li>{item.title}</li>;
 });
@@ -579,61 +453,61 @@ function List({ items, query }) {
   const visible = useMemo(() => items.filter((i) => i.title.includes(query)), [items, query]);
   return <ul>{visible.map((item) => <Row key={item.id} item={item} />)}</ul>;
 }`}
-              </Code>
-              <ModelAnswer>
-                <p>
-                  “React keeps at most two fibers per component — current and alternate — and
-                  recycles the alternate on every render instead of allocating. Bailouts clone child
-                  pointers rather than re-running components, and memo or useMemo make bailouts
-                  succeed more often. What still costs memory is the number of mounted components
-                  and whatever their state and closures hold, so long lists should be virtualized.”
-                </p>
-              </ModelAnswer>
-              <QuickCheck questions={Q_MEMORY} />
-            </Chapter>
+            </Code>
+            <ModelAnswer>
+              <p>
+                “React keeps at most two fibers per component — current and alternate — and recycles
+                the alternate on every render instead of allocating. Bailouts clone child pointers
+                rather than re-running components, and memo or useMemo make bailouts succeed more
+                often. What still costs memory is the number of mounted components and whatever
+                their state and closures hold, so long lists should be virtualized.”
+              </p>
+            </ModelAnswer>
+            <QuickCheck questions={Q_MEMORY} />
+          </Chapter>
 
-            {/* Follow-up: priority ------------------------------------------- */}
-            <Chapter
-              id="iv-priority"
-              index="Follow-up · 08:32–10:04"
-              title="What is a high-priority update, and what happens to the low one?"
-              lede="Rendering a fetched list can wait. A keystroke cannot. React handles the keystroke first, commits it, then goes back."
-            >
-              <Watch from={512} to={604} />
-              <InterruptLab />
-              <Quote at={561}>that’s why it’s called concurrent React</Quote>
-              <Panel>
-                <p className="font-mono text-xs tracking-widest text-mist uppercase">
-                  The list on the board, mapped to lanes
-                </p>
-                <ul className="mt-3 flex flex-col gap-2">
-                  {PRIORITY_LADDER.map((row) => (
-                    <li
-                      key={row.lane}
-                      className="grid gap-1 border-t border-line pt-2 sm:grid-cols-[minmax(0,1fr)_12rem]"
-                    >
-                      <div>
-                        <p className="text-sm text-paper">{row.video}</p>
-                        <p className="text-xs text-mist">{row.note}</p>
-                      </div>
-                      <p className="font-mono text-sm text-copper">{row.lane}</p>
-                    </li>
-                  ))}
-                </ul>
-              </Panel>
-              <Correction
-                said="React pauses the low-priority render, handles the high-priority one, then goes back to the low-priority update."
-                actual={
-                  <>
-                    The interrupted work-in-progress tree is discarded and the low-priority render
-                    restarts from the root later (prepareFreshStack). That is why render must be
-                    pure. Lanes, not a queue position, carry the priority. See{" "}
-                    <GuideLink hash="lanes">08 Lanes</GuideLink>.
-                  </>
-                }
-              />
-              <Code title="Opting the slow part into a low lane">
-                {`
+          {/* Follow-up: priority ------------------------------------------- */}
+          <Chapter
+            id="iv-priority"
+            index="Follow-up · 08:32–10:04"
+            title="What is a high-priority update, and what happens to the low one?"
+            lede="Rendering a fetched list can wait. A keystroke cannot. React handles the keystroke first, commits it, then goes back."
+          >
+            <Watch from={512} to={604} />
+            <InterruptLab />
+            <Quote at={561}>that’s why it’s called concurrent React</Quote>
+            <Panel>
+              <p className="font-mono text-xs tracking-widest text-mist uppercase">
+                The list on the board, mapped to lanes
+              </p>
+              <ul className="mt-3 flex flex-col gap-2">
+                {PRIORITY_LADDER.map((row) => (
+                  <li
+                    key={row.lane}
+                    className="grid gap-1 border-t border-line pt-2 sm:grid-cols-[minmax(0,1fr)_12rem]"
+                  >
+                    <div>
+                      <p className="text-sm text-paper">{row.video}</p>
+                      <p className="text-xs text-mist">{row.note}</p>
+                    </div>
+                    <p className="font-mono text-sm text-copper">{row.lane}</p>
+                  </li>
+                ))}
+              </ul>
+            </Panel>
+            <Correction
+              said="React pauses the low-priority render, handles the high-priority one, then goes back to the low-priority update."
+              actual={
+                <>
+                  The interrupted work-in-progress tree is discarded and the low-priority render
+                  restarts from the root later (prepareFreshStack). That is why render must be pure.
+                  Lanes, not a queue position, carry the priority. See{" "}
+                  <GuideLink hash="lanes">08 Lanes</GuideLink>.
+                </>
+              }
+            />
+            <Code title="Opting the slow part into a low lane">
+              {`
 function Search({ items }) {
   const [query, setQuery] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -653,99 +527,97 @@ function Search({ items }) {
     </>
   );
 }`}
-              </Code>
-              <ModelAnswer>
-                <p>
-                  “Each update gets a lane. Discrete input like a click or keypress is SyncLane;
-                  scroll is InputContinuous; ordinary updates are Default; startTransition and
-                  useDeferredValue put work on transition lanes, which render concurrently and can
-                  be interrupted. If urgent work arrives, React throws away the in-progress
-                  transition render, renders and commits the urgent one, then restarts the
-                  transition. The user sees responsive input, and the pending lanes guarantee
-                  nothing is dropped.”
-                </p>
-              </ModelAnswer>
-              <QuickCheck questions={Q_PRIORITY} />
-            </Chapter>
+            </Code>
+            <ModelAnswer>
+              <p>
+                “Each update gets a lane. Discrete input like a click or keypress is SyncLane;
+                scroll is InputContinuous; ordinary updates are Default; startTransition and
+                useDeferredValue put work on transition lanes, which render concurrently and can be
+                interrupted. If urgent work arrives, React throws away the in-progress transition
+                render, renders and commits the urgent one, then restarts the transition. The user
+                sees responsive input, and the pending lanes guarantee nothing is dropped.”
+              </p>
+            </ModelAnswer>
+            <QuickCheck questions={Q_PRIORITY} />
+          </Chapter>
 
-            {/* Q3 ------------------------------------------------------------ */}
-            <Chapter
-              id="iv-diff"
-              index="Q3 · 10:04–12:50"
-              title="What can you tell me about the diffing algorithm and the virtual DOM?"
-              lede="Render may pause, but commit is synchronous. Comparing two trees in general is cubic, so React bets on two heuristics: types and keys."
-            >
-              <Watch from={604} to={770} />
-              <TwoPhases />
-              <Quote at={658}>the big O for this would be n to the third</Quote>
-              <ComplexityMeter />
-              <Quote at={695}>if different type then redo</Quote>
-              <TypeChangeDemo />
-              <Quote at={739}>you should never use array indexes as keys</Quote>
-              <KeysDemo />
-              <DiffNotes />
-              <ModelAnswer>
-                <p>
-                  “A general tree diff is O(n³). React makes it linear with two assumptions.
-                  Elements of different types produce different trees, so a type change unmounts the
-                  old subtree and mounts a new one. And among siblings, a stable unique key
-                  identifies an item across renders, so React can reuse, move, or delete the right
-                  fiber. Index keys break that when a list inserts, deletes, or reorders: state and
-                  DOM follow the slot instead of the item. The diff runs during render; commit
-                  applies its result synchronously.”
-                </p>
-              </ModelAnswer>
-              <QuickCheck questions={Q_DIFF} />
-              <GuideLinks
-                items={[
-                  ["children", "05 Children and keys"],
-                  ["commit", "09 Commit"],
-                ]}
+          {/* Q3 ------------------------------------------------------------ */}
+          <Chapter
+            id="iv-diff"
+            index="Q3 · 10:04–12:50"
+            title="What can you tell me about the diffing algorithm and the virtual DOM?"
+            lede="Render may pause, but commit is synchronous. Comparing two trees in general is cubic, so React bets on two heuristics: types and keys."
+          >
+            <Watch from={604} to={770} />
+            <TwoPhases />
+            <Quote at={658}>the big O for this would be n to the third</Quote>
+            <ComplexityMeter />
+            <Quote at={695}>if different type then redo</Quote>
+            <TypeChangeDemo />
+            <Quote at={739}>you should never use array indexes as keys</Quote>
+            <KeysDemo />
+            <DiffNotes />
+            <ModelAnswer>
+              <p>
+                “A general tree diff is O(n³). React makes it linear with two assumptions. Elements
+                of different types produce different trees, so a type change unmounts the old
+                subtree and mounts a new one. And among siblings, a stable unique key identifies an
+                item across renders, so React can reuse, move, or delete the right fiber. Index keys
+                break that when a list inserts, deletes, or reorders: state and DOM follow the slot
+                instead of the item. The diff runs during render; commit applies its result
+                synchronously.”
+              </p>
+            </ModelAnswer>
+            <QuickCheck questions={Q_DIFF} />
+            <GuideLinks
+              items={[
+                ["children", "05 Children and keys"],
+                ["commit", "09 Commit"],
+              ]}
+            />
+          </Chapter>
+
+          {/* How deep ------------------------------------------------------ */}
+          <Chapter
+            id="iv-depth"
+            index="13:29–15:09"
+            title="How deep should you go?"
+            lede="After a sponsor break (12:50–13:29, skipped here), the interviewer asks the million-dollar question. The answer depends on the role."
+          >
+            <Watch from={809} to={909} />
+            <div className="grid gap-3 sm:grid-cols-2">
+              <MiniCard
+                title="Senior full-stack"
+                body="Learn the React team’s motivation and the top-level API. Time is spread across the stack."
               />
-            </Chapter>
+              <MiniCard
+                title="Senior React or frontend"
+                body="Go deep. It is your specialty, and in a crowded market this depth makes you stand out."
+              />
+            </div>
+            <Quote at={904}>You will not have to interact with the fiber directly</Quote>
+            <Layer id="picture">
+              <p>
+                The guest’s consolation for everyone else: the data structures inside — queues,
+                priority heaps, trees — grow your mental model and your vocabulary, so going deep is
+                never wasted. For a UI role on constrained devices, assume you are in the second
+                column: you will be asked why a render was slow, not just how to write a hook.
+              </p>
+            </Layer>
+            <QuickCheck questions={Q_DEPTH} />
+          </Chapter>
 
-            {/* How deep ------------------------------------------------------ */}
-            <Chapter
-              id="iv-depth"
-              index="13:29–15:09"
-              title="How deep should you go?"
-              lede="After a sponsor break (12:50–13:29, skipped here), the interviewer asks the million-dollar question. The answer depends on the role."
-            >
-              <Watch from={809} to={909} />
-              <div className="grid gap-3 sm:grid-cols-2">
-                <MiniCard
-                  title="Senior full-stack"
-                  body="Learn the React team’s motivation and the top-level API. Time is spread across the stack."
-                />
-                <MiniCard
-                  title="Senior React or frontend"
-                  body="Go deep. It is your specialty, and in a crowded market this depth makes you stand out."
-                />
-              </div>
-              <Quote at={904}>You will not have to interact with the fiber directly</Quote>
-              <Layer id="picture">
-                <p>
-                  The guest’s consolation for everyone else: the data structures inside — queues,
-                  priority heaps, trees — grow your mental model and your vocabulary, so going deep
-                  is never wasted. For a UI role on constrained devices, assume you are in the
-                  second column: you will be asked why a render was slow, not just how to write a
-                  hook.
-                </p>
-              </Layer>
-              <QuickCheck questions={Q_DEPTH} />
-            </Chapter>
-
-            {/* Where to start ------------------------------------------------- */}
-            <Chapter
-              id="iv-apis"
-              index="15:09–16:08 · close 16:08–17:15"
-              title="Where to start: the browser APIs concurrent React grew out of"
-              lede="requestIdleCallback — “the browser is free, give me work.” requestAnimationFrame — “I’m about to repaint, anything first?” Learn those, and fiber reads as a way to use them."
-            >
-              <Watch from={909} to={968} />
-              <BrowserApiLab />
-              <Code title="The idea from the video: a time-sliced loop on requestIdleCallback">
-                {`
+          {/* Where to start ------------------------------------------------- */}
+          <Chapter
+            id="iv-apis"
+            index="15:09–16:08 · close 16:08–17:15"
+            title="Where to start: the browser APIs concurrent React grew out of"
+            lede="requestIdleCallback — “the browser is free, give me work.” requestAnimationFrame — “I’m about to repaint, anything first?” Learn those, and fiber reads as a way to use them."
+          >
+            <Watch from={909} to={968} />
+            <BrowserApiLab />
+            <Code title="The idea from the video: a time-sliced loop on requestIdleCallback">
+              {`
 let next = firstUnit;
 
 function work(deadline) {
@@ -756,9 +628,9 @@ function work(deadline) {
   else requestAnimationFrame(commit); // apply everything just before a paint
 }
 requestIdleCallback(work);`}
-              </Code>
-              <Code title="Closer to React’s scheduler: MessageChannel and a 5 ms slice">
-                {`
+            </Code>
+            <Code title="Closer to React’s scheduler: MessageChannel and a 5 ms slice">
+              {`
 const channel = new MessageChannel();
 const SLICE_MS = 5;
 let next = firstUnit;
@@ -772,46 +644,46 @@ channel.port1.onmessage = () => {
   else commit();                              // synchronous, right away
 };
 channel.port2.postMessage(null);`}
-              </Code>
-              <Correction
-                said="requestAnimationFrame is when React commits high-priority changes, so they show in the next repaint."
-                actual={
-                  <>
-                    Commit runs as soon as a render finishes — for a click, inside the same task —
-                    and the browser paints afterwards. React does not schedule commits with
-                    requestAnimationFrame.
-                  </>
-                }
-              />
-              <Layer id="picture">
-                <p>
-                  The video closes on fundamentals: browser APIs, JavaScript, the call stack, data
-                  structures, complexity. Everything above is those, assembled. The advice travels
-                  well — Preact and Inferno use the same browser and the same ideas, without React’s
-                  scheduler.
-                </p>
-              </Layer>
-              <QuickCheck questions={Q_APIS} />
-            </Chapter>
+            </Code>
+            <Correction
+              said="requestAnimationFrame is when React commits high-priority changes, so they show in the next repaint."
+              actual={
+                <>
+                  Commit runs as soon as a render finishes — for a click, inside the same task — and
+                  the browser paints afterwards. React does not schedule commits with
+                  requestAnimationFrame.
+                </>
+              }
+            />
+            <Layer id="picture">
+              <p>
+                The video closes on fundamentals: browser APIs, JavaScript, the call stack, data
+                structures, complexity. Everything above is those, assembled. The advice travels
+                well — Preact and Inferno use the same browser and the same ideas, without React’s
+                scheduler.
+              </p>
+            </Layer>
+            <QuickCheck questions={Q_APIS} />
+          </Chapter>
 
-            {/* TV extras ------------------------------------------------------ */}
-            <Chapter
-              id="iv-tv"
-              index="Extra · not in the video"
-              title="On a TV: low memory, slow CPUs, Preact, and Inferno"
-              lede="Living-room devices have a fraction of a laptop’s memory and CPU, and input comes from a remote. The video’s concepts apply; the trade-offs shift."
-            >
-              <ul className="flex flex-col gap-3">
-                {TV_NOTES.map((note) => (
-                  <li key={note.title} className="rounded-md border border-line px-4 py-4">
-                    <p className="font-mono text-xs text-copper">{note.tag}</p>
-                    <h3 className="mt-1 font-serif text-xl text-paper">{note.title}</h3>
-                    <p className="mt-2 text-sm text-mist">{note.body}</p>
-                  </li>
-                ))}
-              </ul>
-              <Code title="A remote-control keypress, kept cheap">
-                {`
+          {/* TV extras ------------------------------------------------------ */}
+          <Chapter
+            id="iv-tv"
+            index="Extra · not in the video"
+            title="On a TV: low memory, slow CPUs, Preact, and Inferno"
+            lede="Living-room devices have a fraction of a laptop’s memory and CPU, and input comes from a remote. The video’s concepts apply; the trade-offs shift."
+          >
+            <ul className="flex flex-col gap-3">
+              {TV_NOTES.map((note) => (
+                <li key={note.title} className="rounded-md border border-line px-4 py-4">
+                  <p className="font-mono text-xs text-copper">{note.tag}</p>
+                  <h3 className="mt-1 font-serif text-xl text-paper">{note.title}</h3>
+                  <p className="mt-2 text-sm text-mist">{note.body}</p>
+                </li>
+              ))}
+            </ul>
+            <Code title="A remote-control keypress, kept cheap">
+              {`
 function Rail({ items }) {
   const [focus, setFocus] = useState(0);            // focus lives in the rail, not the app root
   const deferredFocus = useDeferredValue(focus);    // React: artwork/details can lag a frame
@@ -829,53 +701,52 @@ function Rail({ items }) {
     </VirtualRow>
   );
 }`}
-              </Code>
-              <Layer id="mechanism">
-                <p>
-                  useRemoteKeys and VirtualRow are placeholders for your app’s input and windowing
-                  layers. In Preact, useDeferredValue exists in preact/compat but does not interrupt
-                  anything — there is no lane model — so keep the urgent path small instead.
-                </p>
-              </Layer>
-            </Chapter>
-
-            {/* Pitfalls ------------------------------------------------------- */}
-            <Chapter
-              id="iv-pitfalls"
-              index="Extra · checklist"
-              title="Common pitfalls, and the thirty-second answers"
-              lede="The mistakes this video’s questions are designed to catch, and how to say the answers without the inaccuracies."
-            >
-              <ul className="flex flex-col gap-3">
-                {PITFALLS.map((item) => (
-                  <li key={item.claim} className="rounded-md border border-line px-4 py-4">
-                    <p className="font-serif text-lg text-paper">{item.claim}</p>
-                    <p className="mt-2 text-sm text-mist">{item.fix}</p>
-                  </li>
-                ))}
-              </ul>
-              <Panel>
-                <p className="font-mono text-xs tracking-widest text-copper uppercase">Score</p>
-                <p className="mt-1 text-paper">
-                  {correct} of {ALL_QUESTIONS.length} quick checks right · {answered} answered
-                </p>
-                <p className="mt-2 text-sm text-mist">Answers are saved in this browser only.</p>
-              </Panel>
-              <p className="text-sm text-mist">
-                Credit: questions, order, and spoken explanations from{" "}
-                <a
-                  href={VIDEO.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="underline decoration-copper underline-offset-4"
-                >
-                  {VIDEO.title}
-                </a>{" "}
-                by {VIDEO.channel}. Labs, code, corrections, and TV notes are this guide’s.
+            </Code>
+            <Layer id="mechanism">
+              <p>
+                useRemoteKeys and VirtualRow are placeholders for your app’s input and windowing
+                layers. In Preact, useDeferredValue exists in preact/compat but does not interrupt
+                anything — there is no lane model — so keep the urgent path small instead.
               </p>
-            </Chapter>
-          </main>
-        )}
+            </Layer>
+          </Chapter>
+
+          {/* Pitfalls ------------------------------------------------------- */}
+          <Chapter
+            id="iv-pitfalls"
+            index="Extra · checklist"
+            title="Common pitfalls, and the thirty-second answers"
+            lede="The mistakes this video’s questions are designed to catch, and how to say the answers without the inaccuracies."
+          >
+            <ul className="flex flex-col gap-3">
+              {PITFALLS.map((item) => (
+                <li key={item.claim} className="rounded-md border border-line px-4 py-4">
+                  <p className="font-serif text-lg text-paper">{item.claim}</p>
+                  <p className="mt-2 text-sm text-mist">{item.fix}</p>
+                </li>
+              ))}
+            </ul>
+            <Panel>
+              <p className="font-mono text-xs tracking-widest text-copper uppercase">Score</p>
+              <p className="mt-1 text-paper">
+                {correct} of {ALL_QUESTIONS.length} quick checks right · {answered} answered
+              </p>
+              <p className="mt-2 text-sm text-mist">Answers are saved in this browser only.</p>
+            </Panel>
+            <p className="text-sm text-mist">
+              Credit: questions, order, and spoken explanations from{" "}
+              <a
+                href={VIDEO.url}
+                target="_blank"
+                rel="noreferrer"
+                className="underline decoration-copper underline-offset-4"
+              >
+                {VIDEO.title}
+              </a>{" "}
+              by {VIDEO.channel}. Labs, code, corrections, and TV notes are this guide’s.
+            </p>
+          </Chapter>
+        </main>
       </div>
     </div>
   );
