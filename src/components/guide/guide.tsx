@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "@tanstack/react-router";
 import { DepthProvider, Layer, useDepth, type Depth } from "@/components/guide/depth";
 import { BufferLab } from "@/components/guide/buffer-lab";
 import { ChildrenLab } from "@/components/guide/children-lab";
@@ -50,7 +51,12 @@ function GuideBody() {
             <a href="#top" className="font-mono text-sm tracking-widest text-paper uppercase">
               Begin Work
             </a>
-            <p className="font-mono text-xs text-mist">React 19.2</p>
+            <div className="flex items-baseline gap-4">
+              <Link to="/interview" className="font-mono text-xs text-copper hover:text-paper">
+                Interview drill →
+              </Link>
+              <p className="hidden font-mono text-xs text-mist sm:block">React 19.2</p>
+            </div>
           </div>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="radiogroup" aria-label="Reading depth">
             {DEPTHS.map((item) => (
@@ -102,6 +108,12 @@ function GuideBody() {
               </li>
             ))}
           </ol>
+          <Link
+            to="/interview"
+            className="mt-4 flex min-h-11 items-center border-t border-line pt-3 font-mono text-xs text-copper hover:text-paper"
+          >
+            Interview drill: fiber, reconciliation, virtual DOM →
+          </Link>
         </nav>
 
         <main id="top" className="min-w-0 pb-24">
@@ -485,6 +497,21 @@ function GuideBody() {
             </Layer>
             <Glossary />
           </Chapter>
+
+          <section className="border-t border-line py-12 md:py-16">
+            <p className="font-mono text-xs tracking-widest text-copper uppercase">Next · practice</p>
+            <h2 className="mt-2 font-serif text-3xl text-paper md:text-4xl">Say it out loud: the interview drill</h2>
+            <p className="mt-3 max-w-2xl text-lg text-mist">
+              A companion to theSeniorDev’s senior React interview video: three questions and five follow-ups on fiber,
+              reconciliation, and the virtual DOM, each with a lab, a correction against the source, and a quick check.
+            </p>
+            <Link
+              to="/interview"
+              className="mt-6 inline-flex min-h-11 items-center rounded-md bg-copper px-4 font-mono text-sm text-ink"
+            >
+              Open the interview drill →
+            </Link>
+          </section>
         </main>
       </div>
     </div>
