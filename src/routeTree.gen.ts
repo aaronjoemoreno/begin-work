@@ -10,12 +10,18 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as GeminiRouteImport } from './routes/gemini'
 import { Route as InterviewRouteImport } from './routes/interview'
 import { Route as OverviewRouteImport } from './routes/overview'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GeminiRoute = GeminiRouteImport.update({
+  id: '/gemini',
+  path: '/gemini',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InterviewRoute = InterviewRouteImport.update({
@@ -31,30 +37,34 @@ const OverviewRoute = OverviewRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/gemini': typeof GeminiRoute
   '/interview': typeof InterviewRoute
   '/overview': typeof OverviewRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/gemini': typeof GeminiRoute
   '/interview': typeof InterviewRoute
   '/overview': typeof OverviewRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/gemini': typeof GeminiRoute
   '/interview': typeof InterviewRoute
   '/overview': typeof OverviewRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/interview' | '/overview'
+  fullPaths: '/' | '/gemini' | '/interview' | '/overview'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/interview' | '/overview'
-  id: '__root__' | '/' | '/interview' | '/overview'
+  to: '/' | '/gemini' | '/interview' | '/overview'
+  id: '__root__' | '/' | '/gemini' | '/interview' | '/overview'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  GeminiRoute: typeof GeminiRoute
   InterviewRoute: typeof InterviewRoute
   OverviewRoute: typeof OverviewRoute
 }
@@ -66,6 +76,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/gemini': {
+      id: '/gemini'
+      path: '/gemini'
+      fullPath: '/gemini'
+      preLoaderRoute: typeof GeminiRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/interview': {
@@ -87,6 +104,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  GeminiRoute: GeminiRoute,
   InterviewRoute: InterviewRoute,
   OverviewRoute: OverviewRoute,
 }

@@ -14,6 +14,12 @@ completeWork, commit, the diff heuristics, and React-Gibbon, with inline citatio
 what changed from the original notes. Component: `src/components/interview/overview.tsx`; the same text is in
 `docs/reconciliation-fiber-notes.md`. Old `/interview?tab=overview` and `/interview#ov-*` links redirect there.
 
+## Gemini
+
+`/gemini` is Aaron's single-file "React Reconciler Deep-Dive" simulator (`src/components/gemini/gemini.tsx`), kept
+with its own full-page layout under the site nav: Fiber double buffering, the scheduler and lanes, child diffing, and
+interview flashcards. It uses `lucide-react` (already a dependency). The file is untyped, so it carries `// @ts-nocheck`.
+
 ## Interview drill
 
 `/interview` walks through theSeniorDev’s video

@@ -86,6 +86,12 @@ export function OverviewPage() {
             >
               Interview drill →
             </Link>
+            <Link
+              to="/gemini"
+              className="flex min-h-11 items-center font-mono text-xs text-copper hover:text-paper"
+            >
+              Gemini simulator →
+            </Link>
           </div>
         </nav>
 

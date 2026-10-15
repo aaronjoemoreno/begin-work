@@ -197,6 +197,12 @@ function InterviewBody() {
           >
             Just the notes: reconciliation &amp; Fiber overview →
           </Link>
+          <Link
+            to="/gemini"
+            className="flex min-h-11 items-center font-mono text-xs text-copper hover:text-paper"
+          >
+            Gemini: reconciler deep-dive simulator →
+          </Link>
         </nav>
 
         <main id="interview-drill" className="min-w-0 pb-24">
