@@ -256,7 +256,7 @@ function placeExisting(fiber: OutFiber, oldIndex: number, lastPlacedIndex: numbe
   fiber.placement = false;
   fiber.reason = `Reused the fiber from index ${oldIndex}. ${oldIndex} ≥ lastPlacedIndex ${lastPlacedIndex}, so relative order held. No Placement. lastPlacedIndex becomes ${oldIndex}.`;
   if (fiber.update) {
-    fiber.reason += " Props changed, so completeWork will add Update if prepareUpdate returns a payload.";
+    fiber.reason += " Props changed, so completeWork marks it Update (it only checks whether the props object changed). The prop-by-prop diff happens in commit, inside commitUpdate.";
   }
   trace.push({
     title: `Keep ${fiber.label}`,

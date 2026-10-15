@@ -399,8 +399,9 @@ function GuideBody() {
               <p>
                 On mount, completeWork builds a detached tree: createInstance, then appendInitialChild, then
                 finalizeInitialChildren. Those nodes are not in the document. Commit inserts the top host node that
-                actually attaches to an existing parent. On update, prepareUpdate returns a payload or null.
-                Null means “no Update flag.” commitUpdate applies the payload. Portals are fibers whose host parent
+                actually attaches to an existing parent. On update, completeWork only checks whether the props object changed;
+                if it did, the fiber gets an Update flag. React 19 has no prepareUpdate: commitUpdate receives the old and
+                new props during commit, diffs them, and writes the changes. Portals are fibers whose host parent
                 is a different container than their React parent. The return pointer still points at the React
                 parent. The host parent is found by walking to the portal’s stateNode.
               </p>
@@ -554,8 +555,7 @@ const HOST_ROWS = [
   { method: "createTextInstance", when: "complete, mount", what: "Make a text node." },
   { method: "appendInitialChild", when: "complete, mount", what: "Attach a child before the parent is in the document." },
   { method: "finalizeInitialChildren", when: "complete, mount", what: "Last chance on mount. Autofocus is decided here." },
-  { method: "prepareUpdate", when: "complete, update", what: "Diff props. Return a payload, or null to skip Update." },
-  { method: "commitUpdate", when: "commit, mutation", what: "Apply the payload to a live node." },
+  { method: "commitUpdate", when: "commit, mutation", what: "Diff old and new props and write the changes to a live node." },
   { method: "appendChild / insertBefore", when: "commit, mutation", what: "Place a node that was flagged Placement." },
   { method: "removeChild", when: "commit, mutation", what: "Drop a node listed in parent.deletions." },
   { method: "hideInstance / unhideInstance", when: "commit", what: "Suspense and Activity visibility without unmounting." },
@@ -601,8 +601,8 @@ const TRACE = [
   {
     where: "Render",
     title: "Complete bubbles the notes",
-    picture: "On the way back up, React decides whether a host node needs an update payload, and it summarizes the subtree for commit.",
-    mechanism: "A changed DOM prop becomes an Update flag only if prepareUpdate returns something. Placement and ChildDeletion are already on the fibers from the child reconciler. Parents accumulate subtreeFlags.",
+    picture: "On the way back up, React flags the host nodes whose props changed, and it summarizes the subtree for commit.",
+    mechanism: "A host node whose props object changed gets an Update flag; the prop-by-prop diff waits for commitUpdate during commit. Placement and ChildDeletion are already on the fibers from the child reconciler. Parents accumulate subtreeFlags.",
     source: "completeWork for HostComponent. bubble happens in completeUnitOfWork. If the root completes, finishedWork is that root fiber.",
   },
   {
